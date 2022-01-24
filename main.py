@@ -4,58 +4,93 @@ import time
 
 import pandas as pd
 import requests
-import csv
 import math
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-#browser = webdriver.Chrome('/Users/seanpluemer/Documents/GitHub/Starlink_Search_area/chromedriver')
-#safari_browser = webdriver.Safari()
+import multiprocessing
 
+#pd.set_option('mode.chained_assignment', None)
 
 def main():
 
-    link = "https://www.starlink.com/"
-    #location = "859CF6GG+7PM"
+    csv_name = "california.csv"
+    resume_run = 0
 
-    left_start_point = 37.001470
-    right_start_point = -114.049698
+    left_start_point = 34.171378
+    right_start_point = -118.106927
 
-    miles_wide = 100
-    miles_high = 50
 
-    calculated_wide = math.ceil(miles_wide / 25)
-    calculated_high =  math.ceil(miles_high / 27)
+    miles_wide = 300
+    miles_high = 350
+
+    calculated_wide = math.ceil(miles_wide / 15)
+    calculated_high =  math.ceil(miles_high / 15)
 
     print(calculated_high, calculated_wide)
-
     print("this will take ", ((calculated_wide*calculated_high*10)/60), "min ")
 
-    left, right = calculate_gps_spots(left_start_point,right_start_point, calculated_high, calculated_wide)
-    data_dict = convert_gps_to_point(left,right)
+    if(resume_run==0):
+        left, right = calculate_gps_spots_square_corner(left_start_point,right_start_point, calculated_high, calculated_wide)
+    #    left, right = calculate_gps_spots_square_center(left_start_point,right_start_point, calculated_high, calculated_wide)
+        data_dict = convert_gps_to_point(left,right)
+        df = pd.DataFrame(data_dict)
+        #df["Avail"] = "Nada"
+    else:
+        test = pd.read_csv (csv_name,index_col=False)
+        df = test[test['Avail'].str.contains('Nada')]
+        print(df)
 
-    data_dict["Avail"] =[]
+    #this needs to be sent a list of points to test
+
+    #print(df.PlusPoint)
+    pool = multiprocessing.Pool()
+    pool = multiprocessing.Pool(processes=30 )
+    #print(df)
+    hello_there = pool.map(par_test_points, df.PlusPoint)
+    print(hello_there)
+    df["Avail"]= hello_there
+    print(df)
+
+    df.to_csv(csv_name, encoding='utf-8', index=False)
 
 
-    print(data_dict)
 
-    print(len(data_dict.get('PlusPoint')))
-    plus_point = data_dict.get('PlusPoint')
-    for i in range(len(plus_point)):
-        location = plus_point[i]
-        if (get_result(link,location)):
-            print(location)
-            print("location is avalable!")
-            data_dict["Avail"].append("Y")
-        else:
-            #print("location not avalable")
-            data_dict["Avail"].append("N")
+def par_test_points(plus_point):
+    try:
+            print("testing point: ", plus_point)
+            if (get_result(plus_point)):
+                print("location is avalable!", plus_point)
+                return(plus_point)
+             #   df.at[i, "Avail"] = "Y"
+           # else:
+              #  df.at[i, "Avail"] = "N  "
+    except Exception as e:
+            print("error at point: ", plus_point)
+            print(e)
+    return "nope"
+         #   df.at[i, "Avail"] = "FAILED"
 
-    df =  pd.DataFrame(data_dict)
-    df.to_csv("test.csv", encoding='utf-8')
+        #df.to_csv(csv_name, encoding='utf-8', index=False)
 
+'''    for i in range(len(plus_point)):
+        print("hello2")
 
+        try:
+            location = plus_point[i]
+            print(i, len(plus_point))
+            if (get_result(location)):
+                print(location)
+                print("location is avalable!")
+                df.at[i, "Avail"] = "Y"
+            else:
+                df.at[i, "Avail"] = "N  "
+        except Exception as e:
+            # print(e)
+            df.at[i, "Avail"] = "FAILED"
+
+        #df.to_csv(csv_name, encoding='utf-8', index=False)'''
 def convert_gps_to_point(left,right):
     data_dict = {"GPS":[] , "PlusPoint":[]}
     for i in range(len(left)):
@@ -72,8 +107,34 @@ def convert_gps_to_point(left,right):
                 data_dict["PlusPoint"].append(point)
     return data_dict
 
+def calculate_gps_spots_square_center(left, right, wide_radius, high_radius):
 
-def calculate_gps_spots(left, right, number_of_left_points, number_of_right_points):
+    left_points,right_points = [left], [right]
+
+    n = 0.333
+    up = left
+    down = left
+
+    for i in range((high_radius//2)-1):
+
+        up = up + n
+        down = down - n
+        left_points.append(up) #this is going up
+        left_points.append(down)
+
+    right_dir = right
+    left_dir = right
+    j = 0.5
+    for i in range((wide_radius // 2) - 1):
+        right_dir = right_dir + j
+        left_dir = left_dir - j
+        right_points.append(right_dir)  # this is going up
+        right_points.append(left_dir)
+
+    return left_points, right_points
+
+
+def calculate_gps_spots_square_corner(left, right, number_of_left_points, number_of_right_points):
 
     left_points,right_points = [left], [right]
 
@@ -93,7 +154,9 @@ def calculate_gps_spots(left, right, number_of_left_points, number_of_right_poin
 
 
 
-def get_result(link, location):
+def get_result(location):
+    link = "https://www.starlink.com/"
+
     chrome_options = webdriver.ChromeOptions();
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
     browser = webdriver.Chrome(executable_path=r"/Users/seanpluemer/Documents/GitHub/Starlink_Search_area/chromedriver",
@@ -110,12 +173,12 @@ def get_result(link, location):
     results_search = browser.find_element_by_xpath(
         '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-landing/div[2]/div[1]/div[2]/div/div[2]/form/div[1]/div[2]/div/a')
     results_search.click()
-    time.sleep(1)
+    #time.sleep(1)
 
     button_search = browser.find_element_by_xpath(
         '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-landing/div[2]/div[1]/div[2]/div/div[2]/form/div[2]/button')
     button_search.click()
-    time.sleep(5)
+    time.sleep(10)
     text_results = '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-order/div[1]/div/div[2]/div/div[4]'
 
     try:
@@ -123,7 +186,9 @@ def get_result(link, location):
             '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-preorder/div[1]/div/div[2]/div/div[4]')
         #print(search_result.text)
         return 0
-    except:
+    except Exception as e:
+       # print("error at point: " ,location)
+        #print(e)
         return 1
         #print("available")
 
