@@ -15,25 +15,29 @@ import multiprocessing
 
 def main():
 
-    csv_name = "california.csv"
+    csv_name = "San_diego.csv"
     resume_run = 0
 
-    left_start_point = 34.171378
-    right_start_point = -118.106927
+    left_start_point = 33.904524
 
 
-    miles_wide = 300
-    miles_high = 350
+    right_start_point = -116.316315
 
-    calculated_wide = math.ceil(miles_wide / 15)
-    calculated_high =  math.ceil(miles_high / 15)
+
+    miles_wide = 15 #I actually think this is tall
+    miles_high = 15 #this is wide
+
+
+    calculated_wide = math.ceil(miles_wide)
+    print(calculated_wide)
+    calculated_high =  math.ceil(miles_high)
 
     print(calculated_high, calculated_wide)
-    print("this will take ", ((calculated_wide*calculated_high*10)/60), "min ")
+   # print("this will take ", ((calculated_wide*calculated_high*10)/60), "min ")
 
     if(resume_run==0):
-        left, right = calculate_gps_spots_square_corner(left_start_point,right_start_point, calculated_high, calculated_wide)
-    #    left, right = calculate_gps_spots_square_center(left_start_point,right_start_point, calculated_high, calculated_wide)
+    #    left, right = calculate_gps_spots_square_corner(left_start_point,right_start_point, calculated_high, calculated_wide)
+        left, right = calculate_gps_spots_square_center(left_start_point,right_start_point, calculated_high, calculated_wide)
         data_dict = convert_gps_to_point(left,right)
         df = pd.DataFrame(data_dict)
         #df["Avail"] = "Nada"
@@ -45,6 +49,8 @@ def main():
     #this needs to be sent a list of points to test
 
     #print(df.PlusPoint)
+
+    df.to_csv(csv_name, encoding='utf-8', index=False)
     pool = multiprocessing.Pool()
     pool = multiprocessing.Pool(processes=30 )
     #print(df)
@@ -74,23 +80,7 @@ def par_test_points(plus_point):
 
         #df.to_csv(csv_name, encoding='utf-8', index=False)
 
-'''    for i in range(len(plus_point)):
-        print("hello2")
 
-        try:
-            location = plus_point[i]
-            print(i, len(plus_point))
-            if (get_result(location)):
-                print(location)
-                print("location is avalable!")
-                df.at[i, "Avail"] = "Y"
-            else:
-                df.at[i, "Avail"] = "N  "
-        except Exception as e:
-            # print(e)
-            df.at[i, "Avail"] = "FAILED"
-
-        #df.to_csv(csv_name, encoding='utf-8', index=False)'''
 def convert_gps_to_point(left,right):
     data_dict = {"GPS":[] , "PlusPoint":[]}
     for i in range(len(left)):
@@ -111,11 +101,12 @@ def calculate_gps_spots_square_center(left, right, wide_radius, high_radius):
 
     left_points,right_points = [left], [right]
 
-    n = 0.333
+    n = 0.012*8 #.333 is ~27 miles
+    #n is the accuracy, a higher number is futher apart points
     up = left
     down = left
 
-    for i in range((high_radius//2)-1):
+    for i in range((high_radius//2)-1): #this is actually width
 
         up = up + n
         down = down - n
@@ -124,8 +115,9 @@ def calculate_gps_spots_square_center(left, right, wide_radius, high_radius):
 
     right_dir = right
     left_dir = right
-    j = 0.5
-    for i in range((wide_radius // 2) - 1):
+    j = 0.025*8
+    # j is the accuracy, a higher number is futher apart points
+    for i in range((wide_radius // 2) - 1): #this is actually height
         right_dir = right_dir + j
         left_dir = left_dir - j
         right_points.append(right_dir)  # this is going up
@@ -165,33 +157,36 @@ def get_result(location):
     browser.get(link)
     input_search = browser.find_element_by_id("service-input")
     input_search.send_keys(location)
-    time.sleep(1)
+    time.sleep(3)
 
     # location that works!
     # 859CF6GG+7PM
-
-    results_search = browser.find_element_by_xpath(
-        '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-landing/div[2]/div[1]/div[2]/div/div[2]/form/div[1]/div[2]/div/a')
-    results_search.click()
-    #time.sleep(1)
-
-    button_search = browser.find_element_by_xpath(
-        '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-landing/div[2]/div[1]/div[2]/div/div[2]/form/div[2]/button')
-    button_search.click()
-    time.sleep(10)
-    text_results = '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-order/div[1]/div/div[2]/div/div[4]'
-
     try:
-        search_result = browser.find_element_by_xpath(
-            '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-preorder/div[1]/div/div[2]/div/div[4]')
-        #print(search_result.text)
-        return 0
-    except Exception as e:
-       # print("error at point: " ,location)
-        #print(e)
-        return 1
-        #print("available")
+        #results_search = browser.find_element_by_xpath( '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-landing/div[2]/div[1]/div[2]/div/div[2]/form/div[1]/div[2]/div/a')
+        results_search = browser.find_element_by_xpath( '//*[@id="feature"]/div[2]/div/div[2]/form/div[1]/div[2]/div/a')
+        results_search.click()
+        time.sleep(1)
 
+        button_search = browser.find_element_by_xpath('/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-landing/div[2]/div[1]/div[2]/div/div[2]/form/div[2]/button')
+        button_search.click()
+        time.sleep(10)
+        text_results = '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-order/div[1]/div/div[2]/div/div[4]'
+
+        try:
+            #search_result = browser.find_element_by_xpath( '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-preorder/div[1]/div/div[2]/div/div[4]')
+            search_result = browser.find_element_by_xpath( '/html/body/app-root/public-header-navigation/div/mat-drawer-container/mat-drawer-content/div/app-order/div[1]/div/div[2]/div/div[4]')
+            print('I AM RIGHT HERE', location)
+            browser.close()
+            return 1
+        except Exception as e:
+           # print('I AM RIGHT HERE', location)
+            browser.close()
+            return 0
+            #print("available")
+    except Exception as e:
+        print("something went wrong at point:",location,  e)
+        browser.close()
+        return 0
 
 if __name__ == "__main__":
     main()
